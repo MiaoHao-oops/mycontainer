@@ -1,5 +1,8 @@
+/*
+
 !/rootfs
 !/main.c
 !/Makefile
+!/README.md
 
 /rootfs/proc
