@@ -4,17 +4,19 @@
 #include <unistd.h>
 #include <sys/mount.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 
 #define STACK_SIZE (1024 *1024)
 char child_stack[STACK_SIZE];
-const char path[] = "/home/haooops/Documents/CST/Projects/mycontainer/rootfs";
+#define ROOT_PATH "./rootfs"
 
 int child(void *arg)
 {
         char *child_args[] = {"/bin/sh", NULL};
-        chdir(path);
+        chdir(ROOT_PATH);
         chroot(".");
+        mkdir("/proc", 0777);
         mount("proc", "/proc", "proc", 0, NULL);
         execv("/bin/sh", child_args);
         return 0;
@@ -28,5 +30,7 @@ int main()
         }
 
         waitpid(pid, NULL, 0);
+        umount(ROOT_PATH "/proc");
+        rmdir(ROOT_PATH "/proc");
         return 0;
 }
