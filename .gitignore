@@ -1,6 +1,7 @@
 /*
 
 !/rootfs
+!/LICENSE
 !/main.c
 !/Makefile
 !/README.md
