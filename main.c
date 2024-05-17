@@ -2,6 +2,7 @@
 #include <sched.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -14,6 +15,7 @@ int child(void *arg)
         char *child_args[] = {"/bin/sh", NULL};
         chdir(path);
         chroot(".");
+        mount("proc", "/proc", "proc", 0, NULL);
         execv("/bin/sh", child_args);
         return 0;
 }

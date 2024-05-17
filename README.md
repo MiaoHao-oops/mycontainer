@@ -12,24 +12,18 @@ make
 sudo ./mycontainer
 ```
 
-3. mount `/proc` in the container
-
-```sh
-mount -t proc proc /proc
-```
-
-4. check if the container is in a new PID namespace
+3. check if the container is in a new PID namespace
 
 ```sh
 ps -e
 ```
 
-the shell will output:
+the shell will print:
 
 ```sh
 / # ps -e
 PID   USER     COMMAND
     1 0        /bin/sh
-    3 0        {ps} /bin/sh
+    2 0        {ps} /bin/sh
 / # 
 ```
