@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <string.h>
 #include <sched.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -14,6 +15,7 @@
 #define STACK_SIZE (1024 *1024)
 char child_stack[STACK_SIZE];
 #define ROOT_PATH "/home/haooops/Documents/CST/Projects/mycontainer/rootfs"
+#define HOST_NAME "mycontainer"
 
 int prepare_root()
 {
@@ -59,6 +61,9 @@ int child(void *arg)
                 printf("pivot root failed!\n");
                 return -1;
         }
+
+        // set a new hostname in the new UTS namespace
+        sethostname(HOST_NAME, strlen(HOST_NAME));
 
         char *child_args[] = {"/bin/bash", NULL};
         execv("/bin/bash", child_args);
