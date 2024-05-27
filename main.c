@@ -81,18 +81,40 @@ int child(void *arg)
 unsigned int create_child_id()
 {
     srand(time(NULL));
+    // the child_id is limited to a 8-digit hex
     return rand() % 0x100000000;
+}
+
+int write_file(const char *dir_name, const char *file_name, const char *buf)
+{
+    char file_path[100];
+    int fd;
+
+    strncpy(file_path, dir_name, 100);
+    strncat(file_path, file_name, strlen(file_name));
+    fd = open(file_path, O_WRONLY);
+    if (fd == -1) {
+        printf("open file %s failed!\n", file_path);
+        return -1;
+    }
+    if (write(fd, buf, strlen(buf)) == -1) {
+        printf("write child pid to %s failed!\n", file_path);
+        return -1;
+    }
+
+    return 0;
 }
 
 int setup_cgroup()
 {
     int fd;
-    char subtree_control[] = "+cpuset +cpu +memory";
+    const char subtree_control[] = "+cpuset +cpu +memory";
+    const char subcgroup[] = "/sys/fs/cgroup/mycontainer/";
     DIR *dir;
 
     // create a sub-cgroup namely `mycontainer`
-    if ((dir = opendir("/sys/fs/cgroup/mycontainer")) ==  NULL) {
-        if (mkdir("/sys/fs/cgroup/mycontainer", 0755) == -1) {
+    if ((dir = opendir(subcgroup)) ==  NULL) {
+        if (mkdir(subcgroup, 0755) == -1) {
             printf("create sub-cgroup failed!\n");
             return -1;
         }
@@ -101,13 +123,7 @@ int setup_cgroup()
     }
 
     // add cpuset, cpu and memory to subtree_control of the sub-cgroup
-    fd = open("/sys/fs/cgroup/mycontainer/cgroup.subtree_control", O_WRONLY);
-    if (fd == -1) {
-        printf("open /sys/fs/cgroup/mycontainer/cgroup.subtree_control failed!\n");
-        return -1;
-    }
-    if (write(fd, subtree_control, strlen(subtree_control)) == -1) {
-        printf("write to /sys/fs/cgroup/mycontainer/cgroup.subtree_control failed!\n");
+    if (write_file(subcgroup, "cgroup.subtree_control", subtree_control) < 0) {
         return -1;
     }
 
@@ -118,7 +134,6 @@ int setup_child_cgroup(pid_t pid, unsigned int child_id)
 {
     int fd;
     char subcgroup[100];
-    char file_path[100];
     char buf[100];
     char child_id_s[10];
 
@@ -129,30 +144,26 @@ int setup_child_cgroup(pid_t pid, unsigned int child_id)
     mkdir(subcgroup, 0755);
 
     // add the child process to the sub-sub-cgroup
-    strncpy(file_path, subcgroup, 100);
-    strncat(file_path, "cgroup.procs", 14);
-    fd = open(file_path, O_WRONLY);
-    if (fd == -1) {
-        printf("open file %s failed!\n", file_path);
-        return -1;
-    }
     snprintf(buf, 100, "%d", pid);
-    if (write(fd, buf, strlen(buf)) == -1) {
-        printf("write child pid to %s failed!\n", file_path);
+    if (write_file(subcgroup, "cgroup.procs", buf) < 0) {
         return -1;
     }
 
     // set the limit of CPU usage through `cpu.max`
-    strncpy(file_path, subcgroup, 100);
-    strncat(file_path, "cpu.max", 9);
-    fd = open(file_path, O_WRONLY);
-    if (fd == -1) {
-        printf("open file %s failed!\n", file_path);
+    strncpy(buf, "200000 1000000", 100);    // 20% CPU time
+    if (write_file(subcgroup, "cpu.max", buf) < 0) {
         return -1;
     }
-    strncpy(buf, "200000 1000000", 100);
-    if (write(fd, buf, strlen(buf)) == -1) {
-        printf("write child pid to %s failed!\n", file_path);
+
+    // set the hard limit of memory usage through `memory.max`
+    strncpy(buf, "8388608", 100);           // 8GB memory
+    if (write_file(subcgroup, "memory.max", buf) < 0) {
+        return -1;
+    }
+
+    // set the soft limit of memory usage through `memory.high`
+    strncpy(buf, "1048576", 100);           // 1GB memory
+    if (write_file(subcgroup, "memory.high", buf) < 0) {
         return -1;
     }
 
