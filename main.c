@@ -19,6 +19,10 @@
 char child_stack[STACK_SIZE];
 #define ROOT_PATH "/home/haooops/Documents/CST/Projects/mycontainer/rootfs"
 
+//
+// child process functions
+//
+
 int prepare_root()
 {
     // remount "/" and "rootfs", create directory to put old root
@@ -53,6 +57,20 @@ int pivot_root()
     return 0;
 }
 
+int setup_child_network(unsigned int id)
+{
+    char cmd[100];
+
+    // set ip address according to child_id
+    snprintf(cmd, 100, "ip addr add 172.17.0.%d/16 dev eth0", id % 256);
+    // NOTE: this command should be executed after the creation of the veth pair,
+    //       the `while` loop acts as a semaphore
+    while (system(cmd) != 0);
+    system("ip link set dev eth0 up");
+
+    return 0;
+}
+
 int child(void *arg)
 {
     char host_name[10];
@@ -72,11 +90,18 @@ int child(void *arg)
     snprintf(host_name, 10, "%08x", *child_id);
     sethostname(host_name, strlen(host_name));
 
+    // setup the network
+    setup_child_network(*child_id);
+
     char *child_args[] = {"/bin/bash", NULL};
     execv("/bin/bash", child_args);
 
     return 0;
 }
+
+//
+// parent process functions
+//
 
 unsigned int create_child_id()
 {
@@ -201,6 +226,22 @@ int cleanup_rootfs()
     return 0;
 }
 
+int setup_network(pid_t pid, unsigned int child_id)
+{
+    char cmd[100];
+
+    // the name of veth pair in parent namespace is generated according to child_id
+    snprintf(cmd, 100, "ip link add name veth%08x type veth peer name eth0 netns %d", child_id, pid);
+    system(cmd);
+    // bind the parent veth on bridge docker0
+    snprintf(cmd, 100, "ip link set dev veth%08x master docker0", child_id);
+    system(cmd);
+    snprintf(cmd, 100, "ip link set dev veth%08x up", child_id);
+    system(cmd);
+
+    return 0;
+}
+
 int main()
 {
     pid_t pid;
@@ -213,6 +254,8 @@ int main()
         printf("create child process failed!\n");
         exit(-1);
     }
+
+    setup_network(pid, child_id);
 
     if (setup_cgroup() < 0) {
         printf("setup cgroup failed due to previous errors!\n");
