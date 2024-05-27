@@ -77,7 +77,7 @@ int clone_container()
     pid_t pid;
     int flags;
 
-    flags = SIGCHLD | CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWPID | CLONE_NEWNET | CLONE_NEWCGROUP;
+    flags = SIGCHLD | CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWPID | CLONE_NEWNET;
     pid = clone(child, child_stack + STACK_SIZE, flags, NULL);
     printf("child pid: %d\n", pid);
 
@@ -93,36 +93,54 @@ int cleanup_rootfs()
     return 0;
 }
 
-int main()
+int setup_cgroup(pid_t pid)
 {
-    pid_t pid;
     int fd;
     char buf[100];
 
+    // create a sub-cgroup namely `mycontainer`
     mkdir("/sys/fs/cgroup/mycontainer", 0755);
 
-    if ((pid = clone_container()) < 0) {
-        printf("create child process failed!\n");
-    }
-
+    // add the child process to the sub-cgroup `mycontainer`
     fd = open("/sys/fs/cgroup/mycontainer/cgroup.procs", O_WRONLY);
     if (fd == -1) {
         printf("open file /sys/fs/cgroup/mycontainer/cgroup.procs failed!\n");
+        return -1;
     }
     snprintf(buf, 100, "%d", pid);
     if (write(fd, buf, strlen(buf)) == -1) {
         printf("write child pid to /sys/fs/cgroup/mycontainer/cgroup.procs failed!\n");
+        return -1;
     }
 
+    // set the limit of CPU usage through `cpu.max`
     fd = open("/sys/fs/cgroup/mycontainer/cpu.max", O_WRONLY);
     if (fd == -1) {
         printf("open file /sys/fs/cgroup/mycontainer/cgroup.max failed!\n");
+        return -1;
     }
     strncpy(buf, "200000 1000000", 100);
     if (write(fd, buf, strlen(buf)) == -1) {
         printf("write child pid to /sys/fs/cgroup/mycontainer/cgroup.maxs failed!\n");
+        return -1;
     }
 
+    return 0;
+}
+
+int main()
+{
+    pid_t pid;
+
+    if ((pid = clone_container()) < 0) {
+        printf("create child process failed!\n");
+        exit(-1);
+    }
+
+    if (setup_cgroup(pid) < 0) {
+        printf("setup cgroup failed due to previous errors!\n");
+        exit(-1);
+    }
     waitpid(pid, NULL, 0);
     cleanup_rootfs();
 
