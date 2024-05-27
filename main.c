@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <fcntl.h>
 #include <string.h>
 #include <sched.h>
 #include <stdio.h>
@@ -76,7 +77,7 @@ int clone_container()
     pid_t pid;
     int flags;
 
-    flags = SIGCHLD | CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWPID | CLONE_NEWNET;
+    flags = SIGCHLD | CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWPID | CLONE_NEWNET | CLONE_NEWCGROUP;
     pid = clone(child, child_stack + STACK_SIZE, flags, NULL);
     printf("child pid: %d\n", pid);
 
@@ -95,8 +96,31 @@ int cleanup_rootfs()
 int main()
 {
     pid_t pid;
+    int fd;
+    char buf[100];
+
+    mkdir("/sys/fs/cgroup/mycontainer", 0755);
+
     if ((pid = clone_container()) < 0) {
         printf("create child process failed!\n");
+    }
+
+    fd = open("/sys/fs/cgroup/mycontainer/cgroup.procs", O_WRONLY);
+    if (fd == -1) {
+        printf("open file /sys/fs/cgroup/mycontainer/cgroup.procs failed!\n");
+    }
+    snprintf(buf, 100, "%d", pid);
+    if (write(fd, buf, strlen(buf)) == -1) {
+        printf("write child pid to /sys/fs/cgroup/mycontainer/cgroup.procs failed!\n");
+    }
+
+    fd = open("/sys/fs/cgroup/mycontainer/cpu.max", O_WRONLY);
+    if (fd == -1) {
+        printf("open file /sys/fs/cgroup/mycontainer/cgroup.max failed!\n");
+    }
+    strncpy(buf, "200000 1000000", 100);
+    if (write(fd, buf, strlen(buf)) == -1) {
+        printf("write child pid to /sys/fs/cgroup/mycontainer/cgroup.maxs failed!\n");
     }
 
     waitpid(pid, NULL, 0);
