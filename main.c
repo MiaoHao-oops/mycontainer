@@ -184,7 +184,7 @@ int setup_child_cgroup(pid_t pid, unsigned int child_id)
     }
 
     // set the hard limit of memory usage through `memory.max`
-    strncpy(buf, "8388608", 100);           // 8GB memory
+    strncpy(buf, "1048576", 100);           // 1GB memory
     if (write_file(subcgroup, "memory.max", buf) < 0) {
         return -1;
     }
