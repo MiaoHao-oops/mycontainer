@@ -14,6 +14,8 @@ A tiny toy container runtime written in 200 lines of C.
 - `docker`
 - Linux distribution with [control group v2](https://docs.kernel.org/admin-guide/cgroup-v2.html)
 
+The following build instructions were tested under Ubuntu 22.04.
+
 ### Step 1: make rootfs from docker image
 
 First, we should make a rootfs for our container. There are many ways to build rootfs from scratch, namely, busybox, shell command lines, and etc. In this document, I will demostrate an unusual way to build a rootfs, which take advantages of **docker images**.
