@@ -1,19 +1,19 @@
 #define _GNU_SOURCE
 #include <dirent.h>
 #include <fcntl.h>
-#include <string.h>
+#include <limits.h>
 #include <sched.h>
 #include <stdio.h>
-#include <time.h>
-#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include <stdlib.h>
 #include <sys/syscall.h>
-#include <limits.h>
 #include <sys/mman.h>
+#include <time.h>
+#include <unistd.h>
 
 #define STACK_SIZE (1024 *1024)
 char child_stack[STACK_SIZE];
@@ -78,17 +78,20 @@ int child(void *arg)
 
     if (prepare_root() < 0) {
         printf("prepare root directory failed!\n");
-        return -1;
+        exit(-1);
     }
     if (pivot_root() < 0) {
         printf("pivot root failed!\n");
-        return -1;
+        exit(-1);
     }
 
     // set a new hostname in the new UTS namespace, according to child_id
     child_id = arg;
     snprintf(host_name, 10, "%08x", *child_id);
-    sethostname(host_name, strlen(host_name));
+    if (sethostname(host_name, strlen(host_name)) < 0) {
+        printf("set host name to %s failed!\n", host_name);
+        exit(-1);
+    };
 
     // setup the network
     setup_child_network(*child_id);
