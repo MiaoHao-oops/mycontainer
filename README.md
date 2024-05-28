@@ -43,7 +43,14 @@ First, we should make a rootfs for our container. There are many ways to build r
 
 ### Step 2: compile and run
 
-1. compile and run
+1. edit macro `ROOT_PATH` in `main.c`, change it to the **absolute path** of your own rootfs
+
+    ```diff
+    -#define ROOT_PATH "/home/haooops/Documents/CST/Projects/mycontainer/rootfs"
+    +#define ROOT_PATH "/absolute/path/to/your/own/rootfs"
+    ```
+
+2. compile and run
 
     ```sh
     make run
@@ -51,7 +58,7 @@ First, we should make a rootfs for our container. There are many ways to build r
 
     The shell will ask for your root password. After entering the password, the container will start up.
 
-2. check if the container is in a new PID namespace
+3. check if the container is in a new PID namespace
 
     ```sh
     ps -e
@@ -66,7 +73,7 @@ First, we should make a rootfs for our container. There are many ways to build r
          12 ?        00:00:00 ps
     ```
 
-3. check the network
+4. check the network
 
     ```sh
     ip a
